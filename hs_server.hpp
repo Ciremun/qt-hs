@@ -15,8 +15,8 @@ public:
     explicit TCPServer(QObject *parent = 0);
 
 private:
-    void incomingConnection(qintptr socketDescriptor) override;
-    HS_REQUEST_METHOD parse_request_method(const QByteArray& request);
+    void incomingConnection(qintptr socket_descriptor) override;
+    void write_status(QTcpSocket *socket, const HSRequest &request);
 };
 
 #endif // HS_SERVER_HPP

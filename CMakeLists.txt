@@ -6,7 +6,7 @@ set(CMAKE_AUTOMOC ON)
 
 find_package(Qt5 REQUIRED COMPONENTS Network)
 
-set(SOURCES hs_server.cpp)
+set(SOURCES hs_server.cpp hs_request.cpp)
 
 add_executable(${PROJECT_NAME} main.cpp ${SOURCES})
 target_link_libraries(${PROJECT_NAME} Qt5::Network)

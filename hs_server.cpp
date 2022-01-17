@@ -1,39 +1,71 @@
+#include <cstring>
+
 #include "hs_server.hpp"
 
-TCPServer::TCPServer(QObject *parent) :
-    QTcpServer(parent)
+TCPServer::TCPServer(QObject *parent)
+    : QTcpServer(parent)
 {
-
     if(this->listen(QHostAddress::LocalHost, 1234))
-        qDebug() << "Server started localhost:1234";
-
+        qDebug() << "Server started http://127.0.0.1:1234";
 }
 
-void TCPServer::incomingConnection(qintptr socketDescriptor)
+void TCPServer::incomingConnection(qintptr socket_descriptor)
 {
-    auto socket = new QTcpSocket();
-    socket->setSocketDescriptor(socketDescriptor);
+    QTcpSocket *socket = new QTcpSocket();
+    socket->setSocketDescriptor(socket_descriptor);
     socket->waitForReadyRead(1000);
-    QByteArray request = socket->readAll();
-    auto request_method = parse_request_method(request);
-    // std::string szRequest = data.toStdString();
-    QString response_string = QString("request method: ") + QString::number((int)request_method);
-    QByteArray response_string_ba = response_string.toLocal8Bit();
-    socket->write("HTTP/1.1 200 OK\r\n\r\n");
-    socket->write(response_string_ba);
+
+    QByteArray request_ba = socket->readAll();
+    if (!request_ba.isEmpty())
+    {
+        HSRequest request = parse_request(request_ba);
+        QByteArray response;
+        if (request.status == HSStatus::OK)
+        {
+            printf("status ok\n");
+            if (std::memcmp(request.route, "/api", 4) == 0)
+            {
+                printf("api matched\n");
+                response.insert(0, "api route");
+            }
+            if (std::memcmp(request.route, "/test", 5) == 0)
+            {
+                printf("test matched\n");
+                response.insert(0, "test route");
+            }
+            printf("response: %s\n", response.data());
+        }
+        write_status(socket, request);
+        if (!response.isEmpty())
+            socket->write(response);
+    }
+    else
+    {
+        socket->write("HTTP/1.1 200 OK\r\n\r\n");
+    }
+
     socket->disconnectFromHost();
+    socket->deleteLater();
 }
 
-HS_REQUEST_METHOD TCPServer::parse_request_method(const QByteArray& request)
+void TCPServer::write_status(QTcpSocket *socket, const HSRequest &request)
 {
-    const char *request_string = request.data();
-    if (memcmp(request_string, "GET", 3) == 0)
-        return HS_REQUEST_METHOD::GET;
-    if (memcmp(request_string, "POST", 4) == 0)
-        return HS_REQUEST_METHOD::POST;
-    if (memcmp(request_string, "PUT", 3) == 0)
-        return HS_REQUEST_METHOD::PUT;
-    if (memcmp(request_string, "DELETE", 6) == 0)
-        return HS_REQUEST_METHOD::DELETE;
-    return HS_REQUEST_METHOD::UNKNOWN;
+    switch (request.status)
+    {
+        case HSStatus::OK:
+            socket->write("HTTP/1.1 200 OK\r\n\r\n");
+            break;
+        case HSStatus::BAD_REQUEST:
+            socket->write("HTTP/1.1 400 Bad Request\r\n\r\n");
+            break;
+        case HSStatus::NOT_FOUND:
+            socket->write("HTTP/1.1 404 Not Found\r\n\r\n");
+            break;
+        case HSStatus::INTERNAL_SERVER_ERROR:
+            socket->write("HTTP/1.1 500 Internal Server Error\r\n\r\n");
+            break;
+        default:
+            qDebug() << "Error: unknown request status: " << (int)request.status;
+            break;
+    }
 }
