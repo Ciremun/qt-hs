@@ -16,7 +16,7 @@ void TCPServer::incomingConnection(qintptr socket_descriptor)
     socket->waitForReadyRead();
 
     QByteArray request_ba = socket->readAll();
-    qDebug() << request_ba.data() << Qt::endl;
+    qDebug() << request_ba.data() << '\n';
     if (!request_ba.isEmpty())
     {
         HSRequest request = parse_request(request_ba);
