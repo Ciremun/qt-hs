@@ -161,7 +161,26 @@ void TCPServer::api_route(HSRequest &request, QByteArray &response)
         } break;
         case HSRequestMethod::DELETE:
         {
-
+            QJsonDocument document;
+            if (!parse_json_document(&document))
+                return;
+            QJsonValue id = document["id"];
+            if (id.isUndefined())
+                response.append(JSON_OBJECT_TO_BA({{"message", "api error: no id was provided"}}));
+            else if (id.isDouble())
+            {
+                int idx = id.toVariant().toInt();
+                if (!m_table.remove(idx))
+                {
+                    response.append(JSON_OBJECT_TO_BA({{"message", "api error: id doesn't exist"}}));
+                    return;
+                }
+                QString entry_id_string = QString::number(idx);
+                response.append(JSON_OBJECT_TO_BA({{"id", entry_id_string}}));
+                m_event_log.push_back("item with id " + entry_id_string + " has been deleted");
+            }
+            else
+                response.append(JSON_OBJECT_TO_BA({{"message", "api error: id type is not supported"}}));
         } break;
         default:
             qDebug() << "Warning: unknown request method: " << (int)request.method;
